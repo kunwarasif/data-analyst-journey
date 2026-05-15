@@ -463,3 +463,48 @@ Good habit: when you see yourself typing the same expression twice, stop and ref
 - You see a method in someone's code and want to know what it does
 - You're stuck on an error — check section 14
 - You want to refresh on a pattern before solving a new problem
+
+## File I/O
+
+### Opening files — the `with open()` pattern
+
+```python
+with open(filename, mode) as f:
+    # do something with f
+```
+
+Always use `with` — it auto-closes the file.
+
+### File modes
+
+| Mode | Meaning | Behavior |
+|---|---|---|
+| `"r"` | Read | Default. File must exist. |
+| `"w"` | Write | **Overwrites entire file.** Creates if doesn't exist. |
+| `"a"` | Append | Adds to end. Creates if doesn't exist. |
+
+### Reading methods
+
+| Method | Returns | Use when |
+|---|---|---|
+| `f.read()` | One big string | Small file, want all content as text |
+| `f.readlines()` | List of strings, one per line | Small file, want lines separately |
+| `for line in f:` | One line at a time | Large file, memory-efficient |
+
+### Writing methods
+
+| Method | What it does |
+|---|---|
+| `f.write(text)` | Writes string to file. No newline added — include `\n` if you want one. |
+
+### Special characters
+
+| Character | Meaning |
+|---|---|
+| `\n` | Newline (start a new line) |
+| `\t` | Tab |
+| `\\` | Backslash (escaped) |
+| `\"` | Double quote inside a string |
+
+
+
