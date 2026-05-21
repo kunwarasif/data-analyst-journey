@@ -508,3 +508,41 @@ Always use `with` — it auto-closes the file.
 
 
 
+## Methods Cheatsheet Additions
+
+Add these to your `methods_cheatsheet.md`:
+
+### File I/O
+| Pattern | What it does |
+|---|---|
+| `with open(file, mode) as f:` | Open file safely, auto-close |
+| `f.read()` | Read entire file as one string |
+| `f.readlines()` | Read file as list of lines (with `\n`) |
+| `for line in f:` | Read one line at a time (memory efficient) |
+| `f.write(text)` | Write text (no auto newline) |
+
+### CSV
+| Pattern | What it does |
+|---|---|
+| `import csv` | Bring in the csv module |
+| `csv.DictReader(f)` | Read CSV with first row as dict keys |
+| `list(reader)` | Convert reader iterator to list of dicts |
+
+### Validation patterns
+| Pattern | What it does |
+|---|---|
+| `dict.get("key")` | Return None instead of crashing on missing key |
+| `dict.get("key", default)` | Return default instead of None |
+| `isinstance(x, (int, float))` | Type check against multiple types |
+| `try/except ValueError` | Catch type-conversion errors |
+| `if not val: continue` | Skip empty values in loop |
+
+### Built-in functions added
+| Function | What it does |
+|---|---|
+| `repr(x)` | Show hidden characters in strings |
+| `next(iterator)` | Get next item from iterator manually |
+
+
+
+
