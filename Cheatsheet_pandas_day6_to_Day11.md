@@ -351,5 +351,243 @@ If you internalize these three patterns, you can write 80% of real analyst code.
 | `inplace=True` causing weird issues | Avoid it — assign to a new variable instead |
 ```
 
+```markdown
+## Missing Data
+
+### Finding missing values
+
+| Code | What it does |
+|---|---|
+| `df.isna()` | Boolean DataFrame — True wherever NaN |
+| `df.notna()` | Opposite — True wherever NOT NaN |
+| `df.isna().sum()` | Count of NaN per column |
+| `df.isna().sum().sum()` | Total NaN in whole DataFrame |
+| `(df.isna().sum() / len(df)) * 100` | Percentage missing per column |
+| `df.isna().sum(axis=1)` | Count of NaN per row |
+| `df[df.isna().any(axis=1)]` | Rows with at least one NaN |
+| `df[df.isna().all(axis=1)]` | Rows where ALL values are NaN |
+| `df[df.notna().all(axis=1)]` | Rows with NO missing values |
+| `df.columns[df.isna().any()]` | Column names that have any NaN |
+| `df["col"].isna().sum()` | Count of NaN in one column |
+
+**Memory aid for axis:** `axis=0` means "go down rows" → per-column result. `axis=1` means "go across columns" → per-row result.
+
+### Removing missing values
+
+| Code | What it does |
+|---|---|
+| `df.dropna()` | Drop any row with at least one NaN |
+| `df.dropna(how="all")` | Drop only rows where ALL values are NaN |
+| `df.dropna(subset=["age"])` | Drop only rows where "age" is NaN |
+| `df.dropna(subset=["age", "city"])` | Drop if either age OR city missing |
+| `df.dropna(axis=1)` | Drop columns containing NaN (instead of rows) |
+| `df.dropna(thresh=4)` | Keep only rows with at least 4 non-null values |
+
+**Production rule:** Almost always use `subset=` for targeted drops. Avoid blanket `df.dropna()`.
+
+### Filling missing values
+
+| Code | What it does |
+|---|---|
+| `df["col"].fillna("Unknown")` | Fill with a constant string |
+| `df["col"].fillna(0)` | Fill with zero |
+| `df["col"].fillna(df["col"].mean())` | Fill with mean |
+| `df["col"].fillna(df["col"].median())` | Fill with median (safer with outliers) |
+| `df["col"].fillna(df["col"].mode()[0])` | Fill with most common value |
+| `df["col"].ffill()` | Forward fill — use value above |
+| `df["col"].bfill()` | Backward fill — use value below |
+
+### Filling multiple columns at once
+
+```python
+df.fillna({
+    "name": "Unknown",
+    "age": df["age"].median(),
+    "city": "Unknown",
+    "amount": 0,
+    "date": "Not Recorded"
+})
+```
+
+### Critical: fillna returns a new Series
+
+```python
+df["age"].fillna(df["age"].mean())              # returns new, df unchanged
+df["age"] = df["age"].fillna(df["age"].mean())  # actually saves the change
+```
+
+Forgetting the assignment is the #2 most common pandas bug.
+
+### The Missing Data Decision Framework
+
+```
+1. WHY is it missing? (truly unknown / not applicable / pipeline issue / genuinely zero)
+2. WHAT % is missing? (< 5% drop ok, 5-30% fill, > 30% reconsider column)
+3. IS the missingness biased? (check if missing correlates with metric of interest)
+4. WHAT stage am I in? (analysis = keep NaN, reporting = fill with "Unknown")
+```
+
+The framework matters more than any specific method.
+
+### Stage-appropriate handling
+
+- **During analysis:** keep NaN (aggregations skip it automatically, you can measure missingness with `.isna()`)
+- **For reporting/display:** fill at the end with "Unknown" or similar (dashboards can't show NaN cleanly)
+
+---
+
+## Dates and Time Series
+
+### Converting strings to datetime
+
+| Code | What it does |
+|---|---|
+| `pd.to_datetime(df["col"])` | Auto-detect format, convert column |
+| `pd.to_datetime(df["col"], format="%d/%m/%Y")` | Explicit format (Indian DD/MM/YYYY) |
+| `pd.to_datetime(df["col"], format="%m/%d/%Y")` | US format MM/DD/YYYY |
+| `pd.to_datetime(df["col"], errors="coerce")` | Bad values become NaT instead of crashing |
+| `pd.Timestamp("2024-01-15")` | Create a single datetime value |
+| `df.dtypes` | Verify conversion — should show `datetime64[ns]` |
+
+**Production rule:** Always use `errors="coerce"` unless you specifically want a crash on bad data.
+
+### Common format codes
+
+| Code | Meaning | Example |
+|---|---|---|
+| `%Y` | 4-digit year | 2024 |
+| `%y` | 2-digit year | 24 |
+| `%m` | Month number | 01 |
+| `%b` | Month abbreviation | Jan |
+| `%B` | Month full name | January |
+| `%d` | Day | 15 |
+| `%H` | Hour 24-format | 13 |
+| `%I` | Hour 12-format | 01 |
+| `%M` | Minutes | 30 |
+| `%S` | Seconds | 45 |
+
+### The `.dt` accessor — extracting date parts
+
+| Code | Returns |
+|---|---|
+| `df["date"].dt.year` | Year as integer |
+| `df["date"].dt.month` | Month number 1-12 |
+| `df["date"].dt.month_name()` | Month as string ("January") |
+| `df["date"].dt.day` | Day of month 1-31 |
+| `df["date"].dt.weekday` | Day of week 0-6 (Mon=0, Sun=6) |
+| `df["date"].dt.day_name()` | Day as string ("Monday") |
+| `df["date"].dt.quarter` | Quarter 1-4 |
+| `df["date"].dt.dayofyear` | Day of year 1-365 |
+| `df["date"].dt.hour` | Hour (for timestamped data) |
+| `df["date"].dt.minute` | Minute |
+| `df["date"].dt.isocalendar().week` | ISO week number |
+
+### Date arithmetic
+
+| Code | What it does |
+|---|---|
+| `df["date1"] - df["date2"]` | Returns Timedelta (duration) |
+| `(df["date1"] - df["date2"]).dt.days` | Extract day count as integer |
+| `df["date"] + pd.Timedelta(days=30)` | Add 30 days (fixed duration) |
+| `df["date"] + pd.DateOffset(months=1)` | Add 1 calendar month (handles month length) |
+| `df["date"] - pd.Timedelta(days=7)` | Subtract 7 days |
+| `pd.Timestamp("2024-12-31") - df["date"]` | Days from reference to each date |
+
+### Useful date patterns
+
+```python
+# Days since each row
+today = pd.Timestamp("2024-12-31")
+df["days_ago"] = (today - df["sale_date"]).dt.days
+
+# Weekend flag
+df["is_weekend"] = df["sale_date"].dt.weekday >= 5
+
+# Date range filter
+df[(df["sale_date"] >= "2024-04-01") & (df["sale_date"] <= "2024-06-30")]
+
+# Per-group date range
+df.groupby("salesperson")["sale_date"].agg(["min", "max"])
+```
+
+### Timedelta vs DateOffset
+
+| Use | When |
+|---|---|
+| `pd.Timedelta(days=30)` | Exactly 30 days, regardless of month |
+| `pd.DateOffset(months=1)` | "Same calendar date next month" |
+| `pd.DateOffset(years=1)` | "Same date next year" (handles leap years) |
+
+For warranty/follow-up periods: Timedelta. For "same date next month": DateOffset.
+
+### Resampling — time-series aggregation
+
+Requires the date column to be the DataFrame's **index**.
+
+```python
+df_ts = df.set_index("sale_date")
+df_ts["amount"].resample("ME").sum()
+```
+
+| Code | Period |
+|---|---|
+| `resample("D")` | Daily |
+| `resample("W")` | Weekly |
+| `resample("ME")` | Month end (new) |
+| `resample("MS")` | Month start |
+| `resample("QE")` | Quarter end (new) |
+| `resample("YE")` | Year end (new) |
+| `resample("H")` | Hourly |
+
+**Deprecation note:** Old code uses `M`, `Q`, `Y`. New code uses `ME`, `QE`, `YE`. Update when you see the deprecation warning.
+
+### Multiple aggregations with resample
+
+```python
+df_ts["amount"].resample("ME").agg(["sum", "mean", "count"])
+df_ts["amount"].resample("ME").agg(total="sum", avg="mean", n="count")
+```
+
+### Resample vs groupby — the critical distinction
+
+| Approach | Behavior |
+|---|---|
+| `df.groupby(df["date"].dt.month_name())` | Skips months with no data; lumps same months across different years |
+| `df_ts["col"].resample("ME")` | Includes empty months (shows as 0 or NaN); keeps years separate |
+
+For business reports where missing periods matter, **use resample**. An August with no sales is a signal stakeholders need to see — groupby would hide it.
+
+---
+
+## Common Errors with Missing Data and Dates
+
+| Error | Likely cause | Fix |
+|---|---|---|
+| `KeyError` after merge | Column doesn't exist after the join | Check `df.columns`; verify the join didn't drop it |
+| `TypeError: unsupported operand type(s) for -: 'str' and 'str'` | Trying date math on strings | Convert with `pd.to_datetime()` first |
+| `ValueError: time data does not match format` | Wrong format string | Match actual format in data |
+| `FutureWarning: 'M' is deprecated` | Old frequency code | Use `ME` instead |
+| `df` not changed after `fillna()` | Didn't assign back | `df["col"] = df["col"].fillna(...)` |
+| Unexpected NaT | `errors="coerce"` did its job | Inspect with `df[df["date"].isna()]` |
+| Float dtype after merge | NaN forced float conversion | Use `.astype("Int64")` for nullable integers |
+
+---
+
+## Quick Reference Additions
+
+| Goal | Code |
+|---|---|
+| Count missing per column | `df.isna().sum()` |
+| Percentage missing per column | `(df.isna().sum() / len(df)) * 100` |
+| Drop rows where specific column is missing | `df.dropna(subset=["col"])` |
+| Fill with median | `df["col"].fillna(df["col"].median())` |
+| Fill multiple columns differently | `df.fillna({"col1": 0, "col2": "Unknown"})` |
+| Convert column to datetime | `df["col"] = pd.to_datetime(df["col"], errors="coerce")` |
+| Get day name from date | `df["col"].dt.day_name()` |
+| Days between two dates | `(df["date1"] - df["date2"]).dt.days` |
+| Group by month including empty months | `df.set_index("date").resample("ME").sum()` |
+| Check date type after conversion | `df.dtypes` (should show `datetime64[ns]`) |
+```
+
 ---
 
