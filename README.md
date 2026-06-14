@@ -28,6 +28,4 @@ Daily commits. Practice over tutorials. Real projects over certificates.
 
 
 
----
 
-**Mohd Asif** | India | Open to Data Analyst roles from Q3 2026
